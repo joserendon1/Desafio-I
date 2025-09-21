@@ -1,94 +1,88 @@
 #include <iostream>
+#include <fstream>
 
-int comprimirRLE(const char* entrada, int tamañoEntrada, char* salida){
-    if(tamañoEntrada == 0){
-        return 0;
-    }
-    int salida_i = 0;
-    int contador = 1;
-    char caracterActual = entrada[0];
+int decompressRLE(const unsigned char* input, int inputLength, unsigned char* output) {
+    if (inputLength == 0) return 0;
 
-    for (int i = 1; i <= tamañoEntrada; i++) {
-        if (i < tamañoEntrada && entrada[i] == caracterActual) {
-            contador++;
-        } else {
-
-            int digi = 0;
-            int tempContador = contador;
-
-            while (tempContador > 0) {
-                digi++;
-                tempContador /= 10;
-            }
-
-            tempContador = contador;
-            for (int d = digi - 1; d >= 0; d--) {
-                salida[salida_i + d] = '0' + (tempContador % 10);
-                tempContador /= 10;
-            }
-            salida_i += digi;
-
-            salida[salida_i++] = caracterActual;
-
-            if (i < tamañoEntrada) {
-                caracterActual = entrada[i];
-                contador = 1;
-            }
-        }
-    }
-
-    return salida_i;
-}
-
-int descomprimirRLE(const char* entrada, int tamañoEntrada, char* salida) {
-
-    if (tamañoEntrada == 0){
-        return 0;
-    }
-
-    int salida_i = 0;
+    int outputIndex = 0;
     int i = 0;
 
-    while (i < tamañoEntrada) {
+    while (i < inputLength) {
         int count = 0;
-        while (i < tamañoEntrada && entrada[i] >= '0' && entrada[i] <= '9') {
-            count = count * 10 + (entrada[i] - '0');
+        while (i < inputLength && input[i] >= '0' && input[i] <= '9') {
+            count = count * 10 + (input[i] - '0');
             i++;
         }
 
-        if (i < tamañoEntrada) {
-            char c = entrada[i++];
-
+        if (i < inputLength) {
+            unsigned char c = input[i++];
             for (int j = 0; j < count; j++) {
-                salida[salida_i++] = c;
+                output[outputIndex++] = c;
             }
         }
     }
 
-    return salida_i;
+    return outputIndex;
 }
 
-void imprimirChar(const char* datos, int tamaño) {
-    for (int i = 0; i < tamaño; i++) {
-        std::cout << datos[i];
+void decryptBuffer(const unsigned char* input, int inputLength,
+                   unsigned char* output, int n, unsigned char K) {
+    for (int i = 0; i < inputLength; i++) {
+        unsigned char temp = input[i] ^ K;
+        output[i] = (temp >> n) | (temp << (8 - n));
+    }
+}
+
+int readFromFile(const char* filename, unsigned char* buffer, int maxSize) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        std::cout << "Error: No se pudo abrir el archivo " << filename << std::endl;
+        return -1;
+    }
+
+    int length = 0;
+    char c;
+    while (file.get(c) && length < maxSize) {
+        buffer[length++] = static_cast<unsigned char>(c);
+    }
+
+    file.close();
+    return length;
+}
+
+int main() {
+
+    int n = 3;
+    unsigned char K = 0xAB;
+
+    unsigned char encriptado[200] = {0};
+    int encriptadoLength = readFromFile("mensaje_encriptado.txt", encriptado, 200);
+
+    if (encriptadoLength <= 0) {
+        std::cout << "Error: No se pudo leer el archivo o está vacío" << std::endl;
+        return 1;
+    }
+
+    std::cout << "Archivo leído: " << encriptadoLength << " bytes" << std::endl;
+
+    unsigned char comprimido[200] = {0};
+    decryptBuffer(encriptado, encriptadoLength, comprimido, n, K);
+
+    std::cout << "Desencriptado: ";
+    for (int i = 0; i < encriptadoLength; i++) {
+        std::cout << comprimido[i];
     }
     std::cout << std::endl;
-}
 
-int main(){
+    unsigned char mensajeFinal[200] = {0};
+    int mensajeFinalLength = decompressRLE(comprimido, encriptadoLength, mensajeFinal);
 
-    const char testRLE[] = "AYYXXDDFFFFFA";
-    int testRLETamaño = sizeof(testRLE) - 1;
-    char comprimido[100] = {0};
-    char descomprimido[100] = {0};
-    int dimesionComprimido = comprimirRLE(testRLE, testRLETamaño, comprimido);
-    int dimesionDescomprimido = descomprimirRLE(comprimido, dimesionComprimido, descomprimido);
-    std::cout << "Original: ";
-    imprimirChar(testRLE, testRLETamaño);
-    std::cout << "Comprimido RLE: ";
-    imprimirChar(comprimido, dimesionComprimido);
-    std::cout << "Descomprimido RLE: ";
-    imprimirChar(descomprimido, dimesionDescomprimido);
+    std::cout << "Mensaje final: ";
+    for (int i = 0; i < mensajeFinalLength; i++) {
+        std::cout << mensajeFinal[i];
+    }
+    std::cout << std::endl;
+    std::cout << "Longitud: " << mensajeFinalLength << " caracteres" << std::endl;
 
     return 0;
 }
