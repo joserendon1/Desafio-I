@@ -1,5 +1,12 @@
 #include <iostream>
 
+char rotarDerecha(char byte, int n) {
+    n = n % 8;
+    if (n == 0) return byte;
+    unsigned char ubyte = (unsigned char)byte;
+    return (char)((ubyte >> n) | (ubyte << (8 - n)));
+}
+
 int calcularLongitud(const char* str) {
     int len = 0;
     while (str[len] != '\0' && len < 1000) {
@@ -30,20 +37,9 @@ bool buscarSubcadena(const char* texto, int lenTexto, const char* subcadena, int
 
 int main(){
 
-    char texto1[] = "Hola";
-    char texto2[10] = "Mundo";
-    char texto3[] = "Desafio 1";
-
-    std::cout << calcularLongitud(texto1) << std::endl;
-    std::cout << calcularLongitud(texto2) << std::endl;
-    std::cout << calcularLongitud(texto3) << std::endl;
-
-    char texto4[] = "Quick brown fox";
-    int lenTexto = 15;
-    char subcadena[] = "zorro";
-    int lenSubcadena = 5;
-
-    std::cout << buscarSubcadena(texto4, lenTexto, subcadena, lenSubcadena) << std::endl;
-
+    // 'A' = 65 = 01000001
+    // Rotar 1 bit a la derecha: 10100000 = 160
+    char resultado = rotarDerecha('A', 1);
+    std::cout << (int)(unsigned char)resultado; // Debe ser 160
     return 0;
 }
