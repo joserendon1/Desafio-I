@@ -1,6 +1,55 @@
 #include <iostream>
 #include <fstream>
 
+void obtenerNombresArchivos(const char* numero, char* nombreArchivo, char* nombrePista) {
+    const char prefijoArchivo[] = "Encriptado";
+    const char prefijoPista[] = "pista";
+    const char sufijo[] = ".txt";
+
+    int pos = 0;
+
+    for (int i = 0; prefijoArchivo[i] != '\0'; i++) {
+        nombreArchivo[pos++] = prefijoArchivo[i];
+    }
+    for (int i = 0; numero[i] != '\0'; i++) {
+        nombreArchivo[pos++] = numero[i];
+    }
+    for (int i = 0; sufijo[i] != '\0'; i++) {
+        nombreArchivo[pos++] = sufijo[i];
+    }
+    nombreArchivo[pos] = '\0';
+
+    pos = 0;
+    for (int i = 0; prefijoPista[i] != '\0'; i++) {
+        nombrePista[pos++] = prefijoPista[i];
+    }
+    for (int i = 0; numero[i] != '\0'; i++) {
+        nombrePista[pos++] = numero[i];
+    }
+    for (int i = 0; sufijo[i] != '\0'; i++) {
+        nombrePista[pos++] = sufijo[i];
+    }
+    nombrePista[pos] = '\0';
+}
+
+unsigned char* leerArchivoBinario(const char* nombreArchivo, int& tamaño) {
+    std::ifstream archivo(nombreArchivo, std::ios::binary | std::ios::ate);
+    if (!archivo.is_open()) {
+        std::cout << "Error: No se pudo abrir " << nombreArchivo << std::endl;
+        tamaño = 0;
+        return nullptr;
+    }
+
+    tamaño = archivo.tellg();
+    archivo.seekg(0, std::ios::beg);
+
+    unsigned char* datos = new unsigned char[tamaño];
+    archivo.read(reinterpret_cast<char*>(datos), tamaño);
+    archivo.close();
+
+    return datos;
+}
+
 unsigned char rotarDerecha(unsigned char byte, int n) {
     n = n % 8;
     if (n == 0) return byte;
@@ -201,25 +250,32 @@ bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,
 
 int main() {
 
-    const char* archivoEncriptado = "Encriptado1.txt";
-    std::ifstream archivo(archivoEncriptado, std::ios::binary | std::ios::ate);
-    if (!archivo.is_open()) {
-        std::cout << "Error: No se pudo abrir " << archivoEncriptado << std::endl;
+    char numero[10];
+    char nombreArchivo[50];
+    char nombrePista[50];
+
+    std::cout << "Ingrese el numero del archivo: ";
+    std::cin >> numero;
+
+    obtenerNombresArchivos(numero, nombreArchivo, nombrePista);
+
+    std::cout << "Buscando archivo: " << nombreArchivo << std::endl;
+    std::cout << "Buscando pista: " << nombrePista << std::endl;
+    std::cout << std::endl;
+
+    int tamaño;
+    unsigned char* datosEncriptados = leerArchivoBinario(nombreArchivo, tamaño);
+
+    if (datosEncriptados == nullptr) {
+        std::cout << "No se pudo cargar el archivo encriptado." << std::endl;
         return 1;
     }
 
-    int tamaño = archivo.tellg();
-    archivo.seekg(0, std::ios::beg);
-    unsigned char* datosEncriptados = new unsigned char[tamaño];
-    archivo.read(reinterpret_cast<char*>(datosEncriptados), tamaño);
-    archivo.close();
+    std::cout << "Archivo encriptado: " << nombreArchivo << " (" << tamaño << " bytes)" << std::endl;
 
-    std::cout << "Archivo encriptado: " << archivoEncriptado << " (" << tamaño << " bytes)" << std::endl;
-
-    const char* archivoPista = "pista1.txt";
-    std::ifstream pistaFile(archivoPista);
+    std::ifstream pistaFile(nombrePista);
     if (!pistaFile.is_open()) {
-        std::cout << "Error: No se pudo abrir " << archivoPista << std::endl;
+        std::cout << "Error: No se pudo abrir " << nombrePista << std::endl;
         delete[] datosEncriptados;
         return 1;
     }
@@ -238,8 +294,11 @@ int main() {
     int posicionPista = -1;
     bool encontrado = false;
 
+    std::cout << "Rotaciones: 1-7, Claves: 0-255" << std::endl;
+    std::cout << std::endl;
+
     for (int rotacion = 1; rotacion <= 7; rotacion++) {
-        std::cout << "Rotacion " << rotacion << "/7" << std::endl;
+        std::cout << "Rotacion " << rotacion << "/7." << std::endl;
 
         for (int clave = 0; clave <= 255; clave++) {
             int posicion = -1;
@@ -252,8 +311,6 @@ int main() {
                 metodoEncontrado = metodo;
                 posicionPista = posicion;
                 encontrado = true;
-
-                std::cout << "Solucion encontrada" << std::endl;
                 break;
             }
         }
@@ -270,23 +327,45 @@ int main() {
         std::cout << "- Posicion de la pista: caracter #" << posicionPista + 1 << std::endl;
 
         int longitudFinal = calcularLongitud(resultadoFinal);
-        std::cout << "Texto completo" << std::endl;
         std::cout << "Longitud: " << longitudFinal << " caracteres" << std::endl;
-
-        std::cout << "Texto" << std::endl;
+        std::cout << "Texto:" << std::endl;
         std::cout << resultadoFinal << std::endl;
 
-        std::string nombreArchivoSalida = "resultado_";
-        nombreArchivoSalida += (metodoEncontrado == 1 ? "rle" : "lz78");
-        nombreArchivoSalida += ".txt";
+        char nombreSalida[50];
+        if (metodoEncontrado == 1) {
+            obtenerNombresArchivos(numero, nombreSalida, nombrePista);
 
-        std::ofstream salida(nombreArchivoSalida);
+            int len = calcularLongitud(nombreSalida);
+            nombreSalida[len-4] = '_';
+            nombreSalida[len-3] = 'r';
+            nombreSalida[len-2] = 'l';
+            nombreSalida[len-1] = 'e';
+            nombreSalida[len] = '.';
+            nombreSalida[len+1] = 't';
+            nombreSalida[len+2] = 'x';
+            nombreSalida[len+3] = 't';
+            nombreSalida[len+4] = '\0';
+        } else {
+            obtenerNombresArchivos(numero, nombreSalida, nombrePista);
+            int len = calcularLongitud(nombreSalida);
+            nombreSalida[len-4] = '_';
+            nombreSalida[len-3] = 'l';
+            nombreSalida[len-2] = 'z';
+            nombreSalida[len-1] = '7';
+            nombreSalida[len] = '8';
+            nombreSalida[len+1] = '.';
+            nombreSalida[len+2] = 't';
+            nombreSalida[len+3] = 'x';
+            nombreSalida[len+4] = 't';
+            nombreSalida[len+5] = '\0';
+        }
+
+        std::ofstream salida(nombreSalida);
         salida << resultadoFinal;
         salida.close();
-        std::cout << "\nResultado guardado en: " << nombreArchivoSalida << std::endl;
+        std::cout << "Resultado guardado en: " << nombreSalida << std::endl;
 
     } else {
-        std::cout << "No se encontro solucion:" << std::endl;
         std::cout << "Posibles causas:" << std::endl;
         std::cout << "1. La pista no coincide con el texto" << std::endl;
         std::cout << "2. Los parametros estan fuera del rango probado" << std::endl;
