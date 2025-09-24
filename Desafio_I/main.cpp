@@ -1,10 +1,10 @@
 #include <iostream>
+#include <fstream>
 
-char rotarDerecha(char byte, int n) {
+unsigned char rotarDerecha(unsigned char byte, int n) {
     n = n % 8;
     if (n == 0) return byte;
-    unsigned char ubyte = (unsigned char)byte;
-    return (char)((ubyte >> n) | (ubyte << (8 - n)));
+    return (byte >> n) | (byte << (8 - n));
 }
 
 int calcularLongitud(const char* str) {
@@ -16,9 +16,7 @@ int calcularLongitud(const char* str) {
 }
 
 bool buscarSubcadena(const char* texto, int lenTexto, const char* subcadena, int lenSubcadena) {
-    if (lenSubcadena <= 0 || lenTexto < lenSubcadena){
-        return false;
-    }
+    if (lenSubcadena <= 0 || lenTexto < lenSubcadena) return false;
 
     for (int i = 0; i <= lenTexto - lenSubcadena; i++) {
         bool encontrado = true;
@@ -28,20 +26,18 @@ bool buscarSubcadena(const char* texto, int lenTexto, const char* subcadena, int
                 break;
             }
         }
-        if (encontrado){
-            return true;
-        }
+        if (encontrado) return true;
     }
     return false;
 }
 
-void decompressRLE(const char* compressed, int compressedLen, char* output, int& outputLen) {
+void decompressRLE(const unsigned char* compressed, int compressedLen, char* output, int& outputLen) {
     outputLen = 0;
 
     if (compressedLen < 3) return;
 
     for (int i = 0; i <= compressedLen - 3; i += 3) {
-        int length = ((unsigned char)compressed[i] << 8) | (unsigned char)compressed[i + 1];
+        int length = (compressed[i] << 8) | compressed[i + 1];
         char character = compressed[i + 2];
 
         if (length <= 0 || length > 1000) continue;
@@ -56,101 +52,249 @@ void decompressRLE(const char* compressed, int compressedLen, char* output, int&
     output[outputLen] = '\0';
 }
 
-void crearDatosRLE(unsigned char high, unsigned char low, char character, char* buffer) {
-    buffer[0] = (char)high;
-    buffer[1] = (char)low;
-    buffer[2] = character;
+void decompressLZ78(const unsigned char* compressed, int compressedLen, char* output, int& outputLen) {
+    char** dict = new char*[65536];
+    int* dictLens = new int[65536];
+    int dictSize = 1;
+
+    dict[0] = nullptr;
+    dictLens[0] = 0;
+    outputLen = 0;
+
+    for (int i = 0; i < compressedLen; i += 3) {
+        if (i + 2 >= compressedLen) break;
+
+        int prefixIndex = (compressed[i] << 8) | compressed[i + 1];
+        char nextChar = compressed[i + 2];
+
+        if (nextChar == 0) break;
+
+        if (prefixIndex == 0) {
+            output[outputLen++] = nextChar;
+
+            if (dictSize < 65536) {
+                dictLens[dictSize] = 1;
+                dict[dictSize] = new char[1];
+                dict[dictSize][0] = nextChar;
+                dictSize++;
+            }
+        } else if (prefixIndex < dictSize) {
+            int prefixLen = dictLens[prefixIndex];
+
+            for (int j = 0; j < prefixLen; j++) {
+                if (outputLen < 99999) {
+                    output[outputLen++] = dict[prefixIndex][j];
+                }
+            }
+
+            if (outputLen < 99999) {
+                output[outputLen++] = nextChar;
+            }
+
+            if (dictSize < 65536 && outputLen < 99999) {
+                dictLens[dictSize] = prefixLen + 1;
+                dict[dictSize] = new char[prefixLen + 1];
+
+                for (int j = 0; j < prefixLen; j++) {
+                    dict[dictSize][j] = dict[prefixIndex][j];
+                }
+                dict[dictSize][prefixLen] = nextChar;
+                dictSize++;
+            }
+        }
+
+        if (outputLen >= 99999) break;
+    }
+
+    output[outputLen] = '\0';
+
+    for (int i = 1; i < dictSize; i++) {
+        delete[] dict[i];
+    }
+    delete[] dict;
+    delete[] dictLens;
+}
+
+bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,
+                       const char* pista, int largoPista,
+                       int rotacion, unsigned char clave,
+                       char* resultadoFinal, int& metodoEncontrado, int& posicionEncontrada) {
+
+    if (tamaño <= 0 || largoPista <= 0 || rotacion < 1 || rotacion > 7) {
+        return false;
+    }
+
+    unsigned char* desencriptado = new unsigned char[tamaño + 1];
+    for (int i = 0; i < tamaño; i++) {
+        unsigned char byte = datosEncriptados[i];
+        byte = byte ^ clave;
+        byte = rotarDerecha(byte, rotacion);
+        desencriptado[i] = byte;
+    }
+    desencriptado[tamaño] = '\0';
+
+    char resultadoRLE[100000] = {0};
+    int lenRLE = 0;
+    decompressRLE(desencriptado, tamaño, resultadoRLE, lenRLE);
+
+    if (lenRLE >= largoPista) {
+        if (buscarSubcadena(resultadoRLE, lenRLE, pista, largoPista)) {
+            for (int i = 0; i <= lenRLE - largoPista; i++) {
+                bool match = true;
+                for (int j = 0; j < largoPista; j++) {
+                    if (resultadoRLE[i + j] != pista[j]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    posicionEncontrada = i;
+                    break;
+                }
+            }
+
+            int copiarLen = (lenRLE < 99999) ? lenRLE : 99999;
+            for (int i = 0; i < copiarLen; i++) {
+                resultadoFinal[i] = resultadoRLE[i];
+            }
+            resultadoFinal[copiarLen] = '\0';
+            metodoEncontrado = 1;
+            delete[] desencriptado;
+            return true;
+        }
+    }
+
+    char resultadoLZ78[100000] = {0};
+    int lenLZ78 = 0;
+    decompressLZ78(desencriptado, tamaño, resultadoLZ78, lenLZ78);
+
+    if (lenLZ78 >= largoPista) {
+        if (buscarSubcadena(resultadoLZ78, lenLZ78, pista, largoPista)) {
+            for (int i = 0; i <= lenLZ78 - largoPista; i++) {
+                bool match = true;
+                for (int j = 0; j < largoPista; j++) {
+                    if (resultadoLZ78[i + j] != pista[j]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    posicionEncontrada = i;
+                    break;
+                }
+            }
+
+            int copiarLen = (lenLZ78 < 99999) ? lenLZ78 : 99999;
+            for (int i = 0; i < copiarLen; i++) {
+                resultadoFinal[i] = resultadoLZ78[i];
+            }
+            resultadoFinal[copiarLen] = '\0';
+            metodoEncontrado = 2;
+            delete[] desencriptado;
+            return true;
+        }
+    }
+
+    delete[] desencriptado;
+    return false;
 }
 
 int main() {
 
-    char output[100000];
-    int outputLen;
-
-    {
-        char compressed[3];
-        crearDatosRLE(0, 3, 'A', compressed);
-
-        decompressRLE(compressed, 3, output, outputLen);
-        std::cout << "Entrada: high=0, low=3, char='A'" << std::endl;
-        std::cout << "Salida: ";
-        for (int i = 0; i < outputLen; i++) std::cout << output[i];
-        std::cout << std::endl;
-        std::cout << "Longitud: " << outputLen << std::endl;
+    const char* archivoEncriptado = "Encriptado1.txt";
+    std::ifstream archivo(archivoEncriptado, std::ios::binary | std::ios::ate);
+    if (!archivo.is_open()) {
+        std::cout << "Error: No se pudo abrir " << archivoEncriptado << std::endl;
+        return 1;
     }
 
-    {
-        char problematico = 255;
-        unsigned char correcto = 255;
+    int tamaño = archivo.tellg();
+    archivo.seekg(0, std::ios::beg);
+    unsigned char* datosEncriptados = new unsigned char[tamaño];
+    archivo.read(reinterpret_cast<char*>(datosEncriptados), tamaño);
+    archivo.close();
 
-        std::cout << "char 255 como signed: " << (int)problematico << std::endl;
-        std::cout << "unsigned char 255: " << (int)correcto << std::endl;
+    std::cout << "Archivo encriptado: " << archivoEncriptado << " (" << tamaño << " bytes)" << std::endl;
+
+    const char* archivoPista = "pista1.txt";
+    std::ifstream pistaFile(archivoPista);
+    if (!pistaFile.is_open()) {
+        std::cout << "Error: No se pudo abrir " << archivoPista << std::endl;
+        delete[] datosEncriptados;
+        return 1;
     }
 
-    {
-        char compressed[3];
-        crearDatosRLE(0, 255, 'X', compressed);
+    char pista[1000] = {0};
+    pistaFile.getline(pista, 1000);
+    pistaFile.close();
 
-        decompressRLE(compressed, 3, output, outputLen);
-        std::cout << "Entrada: high=0, low=255, char='X'" << std::endl;
-        std::cout << "Longitud calculada: " << ((0 << 8) | 255) << std::endl;
-        std::cout << "Longitud salida: " << outputLen << std::endl;
-        if (outputLen > 0) {
-            std::cout << "Primeros 5 caracteres: ";
-            for (int i = 0; i < 5 && i < outputLen; i++) std::cout << output[i];
-            std::cout << std::endl;
+    int largoPista = calcularLongitud(pista);
+    std::cout << "Pista conocida: \"" << pista << "\" (" << largoPista << " caracteres)" << std::endl;
+
+    char resultadoFinal[100000] = {0};
+    int rotacionEncontrada = -1;
+    unsigned char claveEncontrada = 0;
+    int metodoEncontrado = 0;
+    int posicionPista = -1;
+    bool encontrado = false;
+
+    for (int rotacion = 1; rotacion <= 7; rotacion++) {
+        std::cout << "Rotacion " << rotacion << "/7" << std::endl;
+
+        for (int clave = 0; clave <= 255; clave++) {
+            int posicion = -1;
+            int metodo = 0;
+
+            if (probarCombinacion(datosEncriptados, tamaño, pista, largoPista,
+                                  rotacion, (unsigned char)clave, resultadoFinal, metodo, posicion)) {
+                rotacionEncontrada = rotacion;
+                claveEncontrada = (unsigned char)clave;
+                metodoEncontrado = metodo;
+                posicionPista = posicion;
+                encontrado = true;
+
+                std::cout << "Solucion encontrada" << std::endl;
+                break;
+            }
         }
+
+        if (encontrado) break;
     }
 
-    {
+    if (encontrado) {
+        std::cout << "Parametros de encriptacion:" << std::endl;
+        std::cout << "- Rotacion (n): " << rotacionEncontrada << " bits a la derecha" << std::endl;
+        std::cout << "- Clave XOR (K): 0x" << std::hex << (int)claveEncontrada << std::dec;
+        std::cout << " (" << (int)claveEncontrada << " decimal)" << std::endl;
+        std::cout << "- Metodo de compresion: " << (metodoEncontrado == 1 ? "RLE" : "LZ78") << std::endl;
+        std::cout << "- Posicion de la pista: caracter #" << posicionPista + 1 << std::endl;
 
-        unsigned char high = 0;
-        unsigned char low = 4;
-        char character = 'B';
+        int longitudFinal = calcularLongitud(resultadoFinal);
+        std::cout << "Texto completo" << std::endl;
+        std::cout << "Longitud: " << longitudFinal << " caracteres" << std::endl;
 
-        char compressed[3] = {(char)high, (char)low, character};
+        std::cout << "Texto" << std::endl;
+        std::cout << resultadoFinal << std::endl;
 
-        std::cout << "Valores originales: high=" << (int)high << ", low=" << (int)low << std::endl;
-        std::cout << "Valores como char: high=" << (int)(char)high << ", low=" << (int)(char)low << std::endl;
+        std::string nombreArchivoSalida = "resultado_";
+        nombreArchivoSalida += (metodoEncontrado == 1 ? "rle" : "lz78");
+        nombreArchivoSalida += ".txt";
 
-        int length_calculada = ((unsigned char)compressed[0] << 8) | (unsigned char)compressed[1];
-        std::cout << "Longitud calculada: " << length_calculada << std::endl;
+        std::ofstream salida(nombreArchivoSalida);
+        salida << resultadoFinal;
+        salida.close();
+        std::cout << "\nResultado guardado en: " << nombreArchivoSalida << std::endl;
 
-        decompressRLE(compressed, 3, output, outputLen);
-        std::cout << "Salida: ";
-        for (int i = 0; i < outputLen; i++) std::cout << output[i];
-        std::cout << std::endl;
+    } else {
+        std::cout << "No se encontro solucion:" << std::endl;
+        std::cout << "Posibles causas:" << std::endl;
+        std::cout << "1. La pista no coincide con el texto" << std::endl;
+        std::cout << "2. Los parametros estan fuera del rango probado" << std::endl;
+        std::cout << "3. El formato del archivo es diferente" << std::endl;
+        std::cout << "4. Se uso un metodo de compresion diferente" << std::endl;
     }
 
-    {
-
-        unsigned char compressed[] = {0, 3, 'C'};
-
-        decompressRLE(reinterpret_cast<const char*>(compressed), 3, output, outputLen);
-
-        std::cout << "Entrada: {0, 3, 'C'} como unsigned char[]" << std::endl;
-        std::cout << "Salida: ";
-        for (int i = 0; i < outputLen; i++) std::cout << output[i];
-        std::cout << std::endl;
-        std::cout << "Longitud: " << outputLen << std::endl;
-    }
-
-    {
-        unsigned char compressed[] = {3, 232, 'Y'};
-
-        decompressRLE(reinterpret_cast<const char*>(compressed), 3, output, outputLen);
-        std::cout << "Entrada: {3, 232, 'Y'} (longitud=1000)" << std::endl;
-        std::cout << "Longitud salida: " << outputLen << std::endl;
-    }
-
-    {
-
-        unsigned char compressed[] = {3, 233, 'Z'};
-
-        decompressRLE(reinterpret_cast<const char*>(compressed), 3, output, outputLen);
-        std::cout << "Entrada: {3, 233, 'Z'} (longitud=1001 > 1000)" << std::endl;
-        std::cout << "Longitud salida: " << outputLen << " (debe ser 0)" << std::endl;
-    }
+    delete[] datosEncriptados;
 
     return 0;
 }
