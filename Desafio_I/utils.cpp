@@ -102,7 +102,7 @@ void mostrarEncabezado() {
 
 void mostrarMenu() {
     std::cout << "MENU PRINCIPAL" << std::endl;
-    std::cout << "1. Descomprimir mensaje" << std::endl;
+    std::cout << "1. Desencriptar y descomprimir mensaje" << std::endl;
     std::cout << "2. Salir" << std::endl;
     std::cout << "Seleccione una opcion: ";
 }
@@ -146,7 +146,7 @@ bool procesarArchivo() {
         std::cout << "Error: No se pudo cargar el archivo encriptado." << std::endl;
         return false;
     }
-    std::cout << "Archivo encriptado cargado: " << std::endl;
+    std::cout << "Archivo encriptado cargado" << std::endl;
 
     std::ifstream pistaFile(nombrePista);
     if (!pistaFile.is_open()) {
@@ -168,7 +168,8 @@ bool procesarArchivo() {
     std::cout << "Pista conocida: " << pista << std::endl;
     std::cout << std::endl;
 
-    char resultadoFinal[100000] = {0};
+    char* resultadoFinal = nullptr;
+    int resultadoLen = 0;
     int rotacionEncontrada = -1, metodoEncontrado = 0, posicionPista = -1;
     unsigned char claveEncontrada = 0;
     bool encontrado = false;
@@ -177,7 +178,7 @@ bool procesarArchivo() {
         for (int clave = 0; clave <= 255 && !encontrado; clave++) {
             int posicion = -1, metodo = 0;
             if (probarCombinacion(datosEncriptados, tamaño, pista, largoPista,
-                                  rotacion, (unsigned char)clave, resultadoFinal, metodo, posicion)) {
+                                  rotacion, (unsigned char)clave, resultadoFinal, resultadoLen, metodo, posicion)) {
                 rotacionEncontrada = rotacion;
                 claveEncontrada = (unsigned char)clave;
                 metodoEncontrado = metodo;
@@ -188,10 +189,11 @@ bool procesarArchivo() {
     }
 
     if (encontrado) {
-        int longitudFinal = calcularLongitud(resultadoFinal);
         mostrarResultados(rotacionEncontrada, claveEncontrada, metodoEncontrado,
-                          posicionPista, longitudFinal, resultadoFinal);
+                          posicionPista, resultadoLen, resultadoFinal);
         guardarResultado(numero, nombrePista, metodoEncontrado, resultadoFinal);
+
+        delete[] resultadoFinal;
     } else {
         mostrarError();
     }

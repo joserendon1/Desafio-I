@@ -10,7 +10,8 @@ unsigned char rotarDerecha(unsigned char byte, int n) {
 bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,
                        const char* pista, int largoPista,
                        int rotacion, unsigned char clave,
-                       char* resultadoFinal, int& metodoEncontrado, int& posicionEncontrada) {
+                       char*& resultadoFinal, int& resultadoLen,
+                       int& metodoEncontrado, int& posicionEncontrada) {
 
     if (tamaño <= 0 || largoPista <= 0 || rotacion < 1 || rotacion > 7) return false;
 
@@ -23,7 +24,7 @@ bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,
     }
     desencriptado[tamaño] = '\0';
 
-    char resultadoRLE[100000] = {0};
+    char* resultadoRLE = nullptr;
     int lenRLE = 0;
     decompressRLE(desencriptado, tamaño, resultadoRLE, lenRLE);
 
@@ -42,15 +43,23 @@ bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,
             }
         }
 
-        int copiarLen = (lenRLE < 99999) ? lenRLE : 99999;
-        for (int i = 0; i < copiarLen; i++) resultadoFinal[i] = resultadoRLE[i];
-        resultadoFinal[copiarLen] = '\0';
+        resultadoLen = lenRLE;
+        resultadoFinal = new char[resultadoLen + 1];
+        for (int i = 0; i < resultadoLen; i++) {
+            resultadoFinal[i] = resultadoRLE[i];
+        }
+        resultadoFinal[resultadoLen] = '\0';
+
         metodoEncontrado = 1;
+
+        delete[] resultadoRLE;
         delete[] desencriptado;
         return true;
     }
 
-    char resultadoLZ78[100000] = {0};
+    delete[] resultadoRLE;
+
+    char* resultadoLZ78 = nullptr;
     int lenLZ78 = 0;
     decompressLZ78(desencriptado, tamaño, resultadoLZ78, lenLZ78);
 
@@ -69,14 +78,21 @@ bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,
             }
         }
 
-        int copiarLen = (lenLZ78 < 99999) ? lenLZ78 : 99999;
-        for (int i = 0; i < copiarLen; i++) resultadoFinal[i] = resultadoLZ78[i];
-        resultadoFinal[copiarLen] = '\0';
+        resultadoLen = lenLZ78;
+        resultadoFinal = new char[resultadoLen + 1];
+        for (int i = 0; i < resultadoLen; i++) {
+            resultadoFinal[i] = resultadoLZ78[i];
+        }
+        resultadoFinal[resultadoLen] = '\0';
+
         metodoEncontrado = 2;
+
+        delete[] resultadoLZ78;
         delete[] desencriptado;
         return true;
     }
 
+    delete[] resultadoLZ78;
     delete[] desencriptado;
     return false;
 }
