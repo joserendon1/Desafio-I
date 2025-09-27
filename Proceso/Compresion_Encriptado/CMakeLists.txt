@@ -1,20 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Desafio_I LANGUAGES CXX)
+project(Compresion_Encriptado LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(Desafio_I main.cpp
-    compresion.h
-    encriptacion.h
-    utils.h
-    compresion.cpp
-    encriptacion.cpp
-    utils.cpp)
+add_executable(Compresion_Encriptado main.cpp)
 
 include(GNUInstallDirs)
-install(TARGETS Desafio_I
+install(TARGETS Compresion_Encriptado
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
