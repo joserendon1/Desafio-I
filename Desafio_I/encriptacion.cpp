@@ -4,7 +4,12 @@
 
 unsigned char rotarDerecha(unsigned char byte, int n) {
     n = n % 8;
-    return (n == 0) ? byte : (byte >> n) | (byte << (8 - n));
+
+    if (n == 0) {
+        return byte;
+    } else {
+        return (byte >> n) | (byte << (8 - n));
+    }
 }
 
 bool probarCombinacion(const unsigned char* datosEncriptados, int tamaño,

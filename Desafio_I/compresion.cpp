@@ -90,7 +90,9 @@ void decompressLZ78(const unsigned char* compressed, int compressedLen, char*& o
     for (int i = 0; i < compressedLen; i += 3) {
         if (i + 2 >= compressedLen) break;
 
-        int prefixIndex = (compressed[i] << 8) | compressed[i + 1];
+        int high = compressed[i];
+        int low = compressed[i + 1];
+        int prefixIndex = (high << 8) | low;
         char nextChar = compressed[i + 2];
 
         if (nextChar == 0) break;

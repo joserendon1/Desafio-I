@@ -9,9 +9,15 @@ void obtenerNombresArchivos(const char* numero, char* nombreArchivo, char* nombr
 
     for (int k = 0; k < 2; k++) {
         int pos = 0;
-        for (int i = 0; prefijos[k][i] != '\0'; i++) nombres[k][pos++] = prefijos[k][i];
-        for (int i = 0; numero[i] != '\0'; i++) nombres[k][pos++] = numero[i];
-        for (int i = 0; ".txt"[i] != '\0'; i++) nombres[k][pos++] = ".txt"[i];
+        for (int i = 0; prefijos[k][i] != '\0'; i++){
+            nombres[k][pos++] = prefijos[k][i];
+        }
+        for (int i = 0; numero[i] != '\0'; i++){
+            nombres[k][pos++] = numero[i];
+        }
+        for (int i = 0; ".txt"[i] != '\0'; i++){
+            nombres[k][pos++] = ".txt"[i];
+        }
         nombres[k][pos] = '\0';
     }
 }
@@ -95,14 +101,15 @@ void guardarResultado(const char* numero, const char* nombrePista, int metodo, c
 }
 
 void mostrarEncabezado() {
-    std::cout << "DESAFIO I" << std::endl;
-    std::cout << "Informatica II" << std::endl;
-    std::cout << std::endl;
+    std::cout << "DESAFIO I    " << std::endl;
+    std::cout << "Informatica II    " << std::endl;
 }
 
 void mostrarMenu() {
-    std::cout << "MENU PRINCIPAL" << std::endl;
-    std::cout << "1. Desencriptar y descomprimir mensaje" << std::endl;
+    std::cout << "------------------------------" << std::endl;
+    std::cout << "MENU" << std::endl;
+    std::cout << "------------------------------" << std::endl;
+    std::cout << "1. Desencriptar/Descomprimir" << std::endl;
     std::cout << "2. Salir" << std::endl;
     std::cout << "Seleccione una opcion: ";
 }
