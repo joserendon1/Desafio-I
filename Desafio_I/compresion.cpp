@@ -1,11 +1,12 @@
+#include <iostream>
 #include "compresion.h"
 
 int calcularTamañoDescomprimidoRLE(const unsigned char* compressed, int compressedLen) {
     int totalLength = 0;
 
     for (int i = 0; i <= compressedLen - 3; i += 3) {
-        int length = (compressed[i] << 8) | compressed[i + 1];
-        if (length > 0 && length <= 10000) {
+        int length = compressed[i + 1];
+        if (length > 0 && length <= 255) {
             totalLength += length;
         }
     }
@@ -31,28 +32,46 @@ void decompressRLE(const unsigned char* compressed, int compressedLen, char*& ou
 
     if (compressedLen < 3) return;
 
-    int totalLength = calcularTamañoDescomprimidoRLE(compressed, compressedLen);
+    int totalLength = 0;
+
+    for (int i = 0; i <= compressedLen - 3; i += 3) {
+        int length = compressed[i + 1];
+        if (length > 0 && length <= 255) {
+            totalLength += length;
+        }
+    }
 
     if (totalLength <= 0 || totalLength > 10000000) {
+        std::cout << "Error: Tamaño descomprimido inválido en RLE: " << totalLength << std::endl;
         return;
     }
 
     output = new char[totalLength + 1];
+    if (!output) {
+        std::cout << "Error: No se pudo asignar memoria para descompresión RLE" << std::endl;
+        return;
+    }
 
     outputLen = 0;
+
     for (int i = 0; i <= compressedLen - 3; i += 3) {
-        int length = (compressed[i] << 8) | compressed[i + 1];
-        char character = compressed[i + 2];
+        unsigned char longitud = compressed[i + 1];
+        unsigned char caracter = compressed[i + 2];
 
-        if (length <= 0 || length > 10000) continue;
-
-        for (int j = 0; j < length; j++) {
-            if (outputLen < totalLength) {
-                output[outputLen++] = character;
+        if (longitud > 0 && longitud <= 255) {
+            for (int j = 0; j < longitud; j++) {
+                if (outputLen < totalLength) {
+                    output[outputLen++] = caracter;
+                } else {
+                    std::cout << "Advertencia: Sobreposición en buffer RLE" << std::endl;
+                    break;
+                }
             }
         }
     }
+
     output[outputLen] = '\0';
+
 }
 
 void decompressLZ78(const unsigned char* compressed, int compressedLen, char*& output, int& outputLen) {
